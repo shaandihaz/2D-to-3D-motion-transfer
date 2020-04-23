@@ -7,8 +7,8 @@ from scipy.ndimage import convolve, sobel
 
 def get_interest_point(image, feature_width):
 
-    #this is essentially the get_interest_points function from project 2, just revised so that
-    #it only grabs 1 feature point
+    # this is essentially the get_interest_points function from project 2, just revised so that
+    # it only grabs 1 feature point
     '''
     :params:
     :image: the cropped frame around the specific joint we're looking for 
@@ -20,28 +20,29 @@ def get_interest_point(image, feature_width):
 
     '''
 
-
     # yDerivKer = np.array([[-2, -1, 0, 1, 2],[-2,-1,0,1,2], [-2,-1,0,1,2], [-2, -1, 0, 1, 2], [-2, -1, 0, 1, 2]])
     # xDerivKer = np.array([[2,2,2,2,2], [1,1,1,1,1],[0,0,0,0,0],[-1,-1,-1,-1,-1], [-2,-2,-2,-2,-2]])
     # yDer = convolve(image, yDerivKer)
     # xDer = convolve(image, xDerivKer)
-    
+
     yDer = sobel(image, 0)
     xDer = sobel(image, 1)
-    gaussYDer2 = filters.gaussian(yDer * yDer) 
+    gaussYDer2 = filters.gaussian(yDer * yDer)
     gaussXDer2 = filters.gaussian(xDer * xDer)
     gausXYder = filters.gaussian(xDer * yDer)
     addXY2 = gaussXDer2 + gaussYDer2
-    C = gaussXDer2 * gaussYDer2 - (gausXYder*gausXYder) - 0.02*(addXY2 * addXY2)
-    threshold_num = 0.001 #need actual number
-    C[C<threshold_num] = 0.0
+    C = gaussXDer2 * gaussYDer2 - \
+        (gausXYder*gausXYder) - 0.02*(addXY2 * addXY2)
+    threshold_num = 0.001  # need actual number
+    C[C < threshold_num] = 0.0
     arr = feature.peak_local_max(C, num_peaks=1)
-    x = arr[:,1][0]
-    y = arr[:,0][0]
+    x = arr[:, 1][0]
+    y = arr[:, 0][0]
 
     return x, y
 
-def interest_points(curr_frame, joint_list):
+
+def get_next_frame_joints(curr_frame, joint_list):
     '''
     Inputs: curr_frame - the current frame of the video
             joint_list - a list of tuples, where each tuple is the xy coordinates of a joint from the previous
@@ -49,16 +50,19 @@ def interest_points(curr_frame, joint_list):
     outputs: a list of joints for the current frame
     '''
 
-    #go through joint_list, crop image to size around each joint, put in get_interest_point, grab
-    # new coords, put them in joint_coords, return list of joints.
+    # go through joint_list of previous frame, crop image to size around each joint, put in get_interest_point, grab
+    # new coords, put them in joint_coords of current frame, return list of joints.
     joint_coords = []
     for joint in joint_list:
-        x, y = get_interest_point(curr_frame[joint[1] - 32:joint[1] + 32, joint[0] - 32:joint[0] + 32], 16)
-        new_joint = (x,y)
+        x, y = get_interest_point(
+            # grab most significant 2D point in the 64x64 subimage around joint
+            curr_frame[joint[1] - 32:joint[1] + 32, joint[0] - 32:joint[0] + 32], 16)
+        new_joint = (x, y)
         joint_coords.append(new_joint)
     return joint_coords
 
-def joints_trace(video, joint_list):
+
+def trace_joints(video, joint_list):
     '''
     input: video - the video that we're are tracing forward
            joint_list - the list of coordinates of joints for the first frame
@@ -66,10 +70,10 @@ def joints_trace(video, joint_list):
 
     '''
     video_joint_list = []
-    #for each frame, it adds the joint list of the previous frame into a list and then 
-    #uses interest_points to find the joint list of the current frame, and repeats
+    # for each frame, it adds the joint list of the previous frame into a list and then
+    # uses interest_points to find the joint list of the current frame, and repeats
     for frame in video:
         new_joints = joint_list
         video_joint_list.append(new_joints)
-        joint_list = interest_points(frame, joint_list)
+        joint_list = get_next_frame_joints(frame, joint_list)
     return video_joint_list
