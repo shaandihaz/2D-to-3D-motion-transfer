@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 from skimage import filters, feature, img_as_int
 from skimage.measure import regionprops
 from scipy.ndimage import convolve, sobel
-from imageio import get_reader
+import cv2
 
 
 def get_interest_point(image, feature_width):
@@ -73,10 +73,12 @@ def trace_joints(video, joint_list):
     video_joint_list = []
     # for each frame, it adds the joint list of the previous frame into a list and then
     # uses interest_points to find the joint list of the current frame, and repeats
-    for frame in video:
+    ret, frame = video.read()
+    while ret:
         new_joints = joint_list
         video_joint_list.append(new_joints)
         joint_list = get_next_frame_joints(frame, joint_list)
+        ret, frame = video.read()
     return video_joint_list
 
 
@@ -84,6 +86,7 @@ def read_video(v_name):
     '''
     returns an iterable of the images in a video
     input: v_name: the name of the video to process
-    output: an imageio.core.format.Reader object (essentially an iterable over the images in the video)
+    output: a cv2.VideoCapture object (essentially an iterable over the images in the video)
     '''
-    return get_reader(v_name, 'ffmpeg')
+    ret, vid = cv2.VideoCapture(v_name)
+    return vid
