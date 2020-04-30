@@ -58,9 +58,9 @@ def get_next_frame_joints(curr_frame, joint_list):
         x, y = get_interest_point(
             # grab most significant 2D point in the 64x64 subimage around joint
             curr_frame[joint[1] - 32:joint[1] + 32, joint[0] - 32:joint[0] + 32], 16)
-        new_joint = [x, y]
+        new_joint = [x + joint[0] - 32, y + joint[1] - 32]
         joint_coords.append(new_joint)
-    return joint_coords
+    return np.asarray(joint_coords)
 
 
 def trace_joints(video, joint_list):
@@ -79,13 +79,24 @@ def trace_joints(video, joint_list):
     ret, frame = video.read()
     i = 2
     while ret:
+
+        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
         print("Frame {}".format(i))
+        if i % 10 == 0:
+
         i += 1
+        print(joint_list)
         new_joints = joint_list
         video_joint_list.append(new_joints)
         joint_list = get_next_frame_joints(frame, joint_list)
         ret, frame = video.read()
     return np.asarray(video_joint_list)
+
+
+def show_frame(bw_frame, points):
+    plt.imshow(bw_frame)
+    plt.
 
 
 def read_video(v_name):
