@@ -6,6 +6,7 @@ from scipy.ndimage import convolve, sobel
 import cv2
 import json
 
+
 def get_interest_point(image, feature_width):
 
     # this is essentially the get_interest_points function from project 2, just revised so that
@@ -57,7 +58,7 @@ def get_next_frame_joints(curr_frame, joint_list):
         x, y = get_interest_point(
             # grab most significant 2D point in the 64x64 subimage around joint
             curr_frame[joint[1] - 32:joint[1] + 32, joint[0] - 32:joint[0] + 32], 16)
-        new_joint = [x,y]
+        new_joint = [x, y]
         joint_coords.append(new_joint)
     return joint_coords
 
@@ -70,12 +71,16 @@ def trace_joints(video, joint_list):
 
     '''
     video_joint_list = []
-    #takes out the first frame
+    # takes out the first frame
+    print("Taking out first frame.")
     ret, frame = video.read()
     # for each frame, it adds the joint list of the previous frame into a list and then
     # uses interest_points to find the joint list of the current frame, and repeats
     ret, frame = video.read()
+    i = 2
     while ret:
+        print("Frame {}".format(i))
+        i += 1
         new_joints = joint_list
         video_joint_list.append(new_joints)
         joint_list = get_next_frame_joints(frame, joint_list)
@@ -89,30 +94,34 @@ def read_video(v_name):
     input: v_name: the name of the video to process
     output: a cv2.VideoCapture object (essentially an iterable over the images in the video)
     '''
-    ret, vid = cv2.VideoCapture(v_name)
+    vid = cv2.VideoCapture(v_name)
     return vid
 
+
 def main():
+    print("Getting video.")
     vid = read_video('../hd00_03.mp4')
+    # Make sure joint indices are integers
     first_joints = np.asarray([
-        [1077.04, 930.635],
-        [1097.37, 778.979],
-        [1101.2, 650.628],
-        [1181.71, 945.775],
-        [1181.28, 780.108],
-        [1197.99, 658.88],
-        [1149.48, 629.206],
-        [1057.78, 628.158],
-        [1225.3, 636.086],
-        [1069.84, 540.074],
-        [1236.48, 557.507],
-        [1083.12, 431.281],
-        [1216.27, 424.212],
-        [1152.95, 321.682],
-        [1156.8, 390.146],
+        [1077, 930],
+        [1097, 779],
+        [1101, 651],
+        [1182, 946],
+        [1181, 780],
+        [1198, 659],
+        [1149, 629],
+        [1058, 628],
+        [1225, 636],
+        [1070, 540],
+        [1236, 558],
+        [1083, 431],
+        [1216, 424],
+        [1153, 322],
+        [1157, 390],
     ])
     res = trace_joints(vid, first_joints)
     print(res)
+
 
 if __name__ == '__main__':
     main()
