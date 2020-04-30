@@ -74,6 +74,9 @@ def trace_joints(video, joint_list):
     # takes out the first frame
     print("Taking out first frame.")
     ret, frame = video.read()
+    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    show_frame(frame, joint_list)
+
     # for each frame, it adds the joint list of the previous frame into a list and then
     # uses interest_points to find the joint list of the current frame, and repeats
     ret, frame = video.read()
@@ -84,7 +87,7 @@ def trace_joints(video, joint_list):
 
         print("Frame {}".format(i))
         if i % 10 == 0:
-
+            show_frame(frame, joint_list)
         i += 1
         print(joint_list)
         new_joints = joint_list
@@ -96,7 +99,8 @@ def trace_joints(video, joint_list):
 
 def show_frame(bw_frame, points):
     plt.imshow(bw_frame)
-    plt.
+    plt.scatter(x=points[:, 0], y=points[:, 1], c='r', s=40)
+    plt.show()
 
 
 def read_video(v_name):
