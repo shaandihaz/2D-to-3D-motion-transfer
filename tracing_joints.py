@@ -45,8 +45,7 @@ def get_interest_point(image, feature_width):
 def get_next_frame_joints(curr_frame, joint_list):
     '''
     Inputs: curr_frame - the current frame of the video
-            joint_list - a list of tuples, where each tuple is the xy coordinates of a joint from the previous
-                frame
+            joint_list - an n X 2 array, where n is the number of joints and holds the xy coords of each joint
     outputs: a list of joints for the current frame
     '''
 
@@ -57,7 +56,7 @@ def get_next_frame_joints(curr_frame, joint_list):
         x, y = get_interest_point(
             # grab most significant 2D point in the 64x64 subimage around joint
             curr_frame[joint[1] - 32:joint[1] + 32, joint[0] - 32:joint[0] + 32], 16)
-        new_joint = (x, y)
+        new_joint = [x,y]
         joint_coords.append(new_joint)
     return joint_coords
 
@@ -70,10 +69,12 @@ def trace_joints(video, joint_list):
 
     '''
     video_joint_list = []
+    #takes out the first frame
+    video = video[1:]
     # for each frame, it adds the joint list of the previous frame into a list and then
     # uses interest_points to find the joint list of the current frame, and repeats
     for frame in video:
         new_joints = joint_list
         video_joint_list.append(new_joints)
         joint_list = get_next_frame_joints(frame, joint_list)
-    return video_joint_list
+    return np.asarray(video_joint_list)
