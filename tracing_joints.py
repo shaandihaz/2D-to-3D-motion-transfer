@@ -4,7 +4,7 @@ from skimage import filters, feature, img_as_int
 from skimage.measure import regionprops
 from scipy.ndimage import convolve, sobel
 import cv2
-
+import json
 
 def get_interest_point(image, feature_width):
 
@@ -71,7 +71,7 @@ def trace_joints(video, joint_list):
     '''
     video_joint_list = []
     #takes out the first frame
-    video = video[1:]
+    ret, frame = video.read()
     # for each frame, it adds the joint list of the previous frame into a list and then
     # uses interest_points to find the joint list of the current frame, and repeats
     ret, frame = video.read()
@@ -91,3 +91,28 @@ def read_video(v_name):
     '''
     ret, vid = cv2.VideoCapture(v_name)
     return vid
+
+def main():
+    vid = read_video('../hd00_03.mp4')
+    first_joints = np.asarray([
+        [1077.04, 930.635],
+        [1097.37, 778.979],
+        [1101.2, 650.628],
+        [1181.71, 945.775],
+        [1181.28, 780.108],
+        [1197.99, 658.88],
+        [1149.48, 629.206],
+        [1057.78, 628.158],
+        [1225.3, 636.086],
+        [1069.84, 540.074],
+        [1236.48, 557.507],
+        [1083.12, 431.281],
+        [1216.27, 424.212],
+        [1152.95, 321.682],
+        [1156.8, 390.146],
+    ])
+    res = trace_joints(vid, first_joints)
+    print(res)
+
+if __name__ == '__main__':
+    main()
