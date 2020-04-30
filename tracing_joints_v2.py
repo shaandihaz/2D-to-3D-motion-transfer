@@ -3,6 +3,8 @@ import matplotlib.pyplot as plt
 from skimage import filters, feature, img_as_int
 from skimage.measure import regionprops
 from scipy.ndimage import convolve, sobel
+import cv2
+
 
 def get_interest_points(image, feature_width):
     '''
@@ -19,25 +21,27 @@ def get_interest_points(image, feature_width):
 
     '''
 
-
     # These are placeholders - replace with the coordinates of your interest points!
     xs = np.zeros(1)
     ys = np.zeros(1)
 
     yDer = sobel(image, 0)
     xDer = sobel(image, 1)
-    gaussYDer2 = filters.gaussian(yDer * yDer) 
+    gaussYDer2 = filters.gaussian(yDer * yDer)
     gaussXDer2 = filters.gaussian(xDer * xDer)
     gausXYder = filters.gaussian(xDer * yDer)
     addXY2 = gaussXDer2 + gaussYDer2
-    C = gaussXDer2 * gaussYDer2 - (gausXYder*gausXYder) - 0.02*(addXY2 * addXY2)
-    threshold_num = 0.001 #need actual number
-    C[C<threshold_num] = 0.0
-    arr = feature.peak_local_max(C, feature_width, exclude_border=feature_width//2)
-    xs = arr[:,1]
-    ys = arr[:,0]
+    C = gaussXDer2 * gaussYDer2 - \
+        (gausXYder*gausXYder) - 0.02*(addXY2 * addXY2)
+    threshold_num = 0.001  # need actual number
+    C[C < threshold_num] = 0.0
+    arr = feature.peak_local_max(
+        C, feature_width, exclude_border=feature_width//2)
+    xs = arr[:, 1]
+    ys = arr[:, 0]
 
     return xs, ys
+
 
 def get_features(image, x, y, feature_width):
     '''
@@ -64,28 +68,29 @@ def get_features(image, x, y, feature_width):
     grad_ori = np.arctan2(yDer, xDer) + np.pi
     features = []
     inc = np.pi/4
-    bins = np.array([0, inc, 2*inc, 3*inc, 4*inc, 5*inc, 6*inc, 7*inc, 8*inc  + 0.001])
+    bins = np.array([0, inc, 2*inc, 3*inc, 4*inc, 5 *
+                     inc, 6*inc, 7*inc, 8*inc + 0.001])
     for z in range(len(x)):
         xs = int(x[z])
         ys = int(y[z])
         xlb = xs - width*2
-        xhb = xs + width*2  
+        xhb = xs + width*2
         ylb = ys - width*2
         yhb = ys + width*2
-        descriptor = []  
-        if (xlb < 0 or ylb < 0 or xhb >= image.shape[1] or yhb >= image.shape[0]): 
+        descriptor = []
+        if (xlb < 0 or ylb < 0 or xhb >= image.shape[1] or yhb >= image.shape[0]):
 
             continue
         else:
-            for i in range(xlb, xhb, width):     
+            for i in range(xlb, xhb, width):
                 for j in range(ylb, yhb, width):
-                    sublist = [0] * 8  
+                    sublist = [0] * 8
                     submag = grad_mag[j:j + width, i:i + width]
-                    subori = grad_ori[j:j + width, i:i + width] 
+                    subori = grad_ori[j:j + width, i:i + width]
                     digits = np.digitize(subori, bins)
                     for k in range(width):
                         for l in range(width):
-                            index = digits[k,l] - 1
+                            index = digits[k, l] - 1
                             sublist[index] += submag[k][l]
                     descriptor.extend(sublist)
             norm = np.linalg.norm(descriptor)
@@ -98,7 +103,6 @@ def get_features(image, x, y, feature_width):
     return features
 
 
-
 def get_next_frame_joints(curr_frame, joint_list):
     '''
     Inputs: curr_frame - the current frame of the video
@@ -108,7 +112,7 @@ def get_next_frame_joints(curr_frame, joint_list):
 
     # go through joint_list of previous frame, crop image to size around each joint, put in get_interest_point, grab
     # new coords, put them in joint_coords of current frame, return list of joints.
-    
+
     joint_coords = []
     '''
     #this is leftover code from the other version
@@ -131,16 +135,30 @@ def trace_joints(video, joint_list):
     '''
     video_joint_list = []
 
-
     # for each frame, it adds the joint list of the previous frame into a list and then
     # uses interest_points to find the joint list of the current frame, and repeats
-    first_frame = video[0]
-    first_features = get_features(first_frame, joint_list[:,1], joint_list[:,0], 16)
-    
-    video = video[1:]
-    for frame in video:
+    ret, first_frame = video.read()
+    if not ret:
+        print("Failure to load video")
+        return None
+    first_features = get_features(
+        first_frame, joint_list[:, 1], joint_list[:, 0], 16)
+    # for each frame, it adds the joint list of the previous frame into a list and then
+    # uses interest_points to find the joint list of the current frame, and repeats
+    ret, frame = video.read()
+    while ret:
         new_joints = joint_list
         video_joint_list.append(new_joints)
         joint_list = get_next_frame_joints(frame, joint_list)
+        ret, frame = video.read()
     return np.asarray(video_joint_list)
 
+
+def read_video(v_name):
+    '''
+    returns an iterable of the images in a video
+    input: v_name: the name of the video to process
+    output: a cv2.VideoCapture object (essentially an iterable over the images in the video)
+    '''
+    ret, vid = cv2.VideoCapture(v_name)
+    return vid
