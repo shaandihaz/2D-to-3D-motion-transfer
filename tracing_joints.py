@@ -71,7 +71,6 @@ def trace_joints(video, joint_list):
     '''
     video_joint_list = []
     #takes out the first frame
-    video = video[1:]
     # for each frame, it adds the joint list of the previous frame into a list and then
     # uses interest_points to find the joint list of the current frame, and repeats
     ret, frame = video.read()

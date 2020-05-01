@@ -144,3 +144,12 @@ def trace_joints(video, joint_list):
         joint_list = get_next_frame_joints(frame, joint_list)
     return np.asarray(video_joint_list)
 
+def read_video(v_name):
+    '''
+    returns an iterable of the images in a video
+    input: v_name: the name of the video to process
+    output: a cv2.VideoCapture object (essentially an iterable over the images in the video)
+    '''
+    ret, vid = cv2.VideoCapture(v_name)
+    return vid
+
