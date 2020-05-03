@@ -43,7 +43,9 @@ def get_interest_point(image, feature_width):
 
     return x, y
 
-
+# use more algo like scene detection to match kernel instead of matching point
+# calculate dense optical flow around box of confirmed feature
+# 
 def get_next_frame_joints(curr_frame, joint_list):
     '''
     Inputs: curr_frame - the current frame of the video
@@ -57,9 +59,10 @@ def get_next_frame_joints(curr_frame, joint_list):
     for joint in joint_list:
         x, y = get_interest_point(
             # grab most significant 2D point in the 64x64 subimage around joint
-            curr_frame[joint[1] - 32:joint[1] + 32, joint[0] - 32:joint[0] + 32], 16)
+            curr_frame[np.max([joint[1] - 32, 0]):joint[1] + 32, joint[0] - 32:joint[0] + 32], 16)
         new_joint = [x + joint[0] - 32, y + joint[1] - 32]
         joint_coords.append(new_joint)
+        # cv2.calcOpticalFlowPyrLK()
     return np.asarray(joint_coords)
 
 
@@ -89,7 +92,6 @@ def trace_joints(video, joint_list):
         if i % 10 == 0:
             show_frame(frame, joint_list)
         i += 1
-        print(joint_list)
         new_joints = joint_list
         video_joint_list.append(new_joints)
         joint_list = get_next_frame_joints(frame, joint_list)
@@ -115,6 +117,7 @@ def read_video(v_name):
 
 def main():
     print("Getting video.")
+    plt.gray()
     vid = read_video('../hd00_03.mp4')
     # Make sure joint indices are integers
     first_joints = np.asarray([
