@@ -7,61 +7,21 @@ import cv2
 import json
 
 
-def get_interest_point(image, feature_width):
-
-    # this is essentially the get_interest_points function from project 2, just revised so that
-    # it only grabs 1 feature point
-    '''
-    :params:
-    :image: the cropped frame around the specific joint we're looking for 
-    :feature_width: don't do anything with it yet, may be useful later
-
-    :returns:
-    :x: x coordinate of the interest point in the image
-    :y: y coordinate of the interest point in the image
-
-    '''
-
-    # yDerivKer = np.array([[-2, -1, 0, 1, 2],[-2,-1,0,1,2], [-2,-1,0,1,2], [-2, -1, 0, 1, 2], [-2, -1, 0, 1, 2]])
-    # xDerivKer = np.array([[2,2,2,2,2], [1,1,1,1,1],[0,0,0,0,0],[-1,-1,-1,-1,-1], [-2,-2,-2,-2,-2]])
-    # yDer = convolve(image, yDerivKer)
-    # xDer = convolve(image, xDerivKer)
-
-    yDer = sobel(image, 0)
-    xDer = sobel(image, 1)
-    gaussYDer2 = filters.gaussian(yDer * yDer)
-    gaussXDer2 = filters.gaussian(xDer * xDer)
-    gausXYder = filters.gaussian(xDer * yDer)
-    addXY2 = gaussXDer2 + gaussYDer2
-    C = gaussXDer2 * gaussYDer2 - \
-        (gausXYder*gausXYder) - 0.02*(addXY2 * addXY2)
-    threshold_num = 0.001  # need actual number
-    C[C < threshold_num] = 0.0
-    arr = feature.peak_local_max(C, num_peaks=1)
-    x = arr[:, 1][0]
-    y = arr[:, 0][0]
-
-    return x, y
-
-
 def bound(joint_coords, image):
+    old_joints = joint_coords
     np.clip(joint_coords[:, 0], a_min=0,
             a_max=image.shape[1], out=joint_coords[:, 0])
     np.clip(joint_coords[:, 1], a_min=0,
             a_max=image.shape[0], out=joint_coords[:, 1])
     return joint_coords
 
-
-# use more algo like scene detection to match kernel instead of matching point
 # calculate dense optical flow around box of confirmed feature
-#
-scale = 0.5
-
 
 def est_next_point(old_point, curr_point):
+    scale = 0.5
     y_diff = curr_point[0] - old_point[0]
     x_diff = curr_point[1] - old_point[1]
-    return scale * np.array([curr_point[0] + y_diff, curr_point[1] + x_diff])
+    return np.array([curr_point[0] + scale * y_diff, curr_point[1] + scale * x_diff])
 
 
 def get_next_frame_joints_lk(par_frame, curr_frame, par_joints, grand_joints):
@@ -71,17 +31,13 @@ def get_next_frame_joints_lk(par_frame, curr_frame, par_joints, grand_joints):
     outputs: a list of joints for the current frame
     '''
 
-    # go through joint_list of previous frame, crop image to size around each joint, put in get_interest_point, grab
-    # new coords, put them in joint_coords of current frame, return list of joints.
     lk_params = dict(winSize=(50, 50),
                      maxLevel=3)
     old_pts = np.float32(par_joints)
     np.reshape(old_pts, (-1, 1, 2))
     next_joints, stat, err = cv2.calcOpticalFlowPyrLK(
         par_frame, curr_frame, old_pts, None, **lk_params)
-    # make list
-    # if good point, don't do anything
-    #
+
     for i in range(stat.shape[0]):
         if stat[i] == 0:
             next_joints[i] = est_next_point(grand_joints[i], par_joints[i])
@@ -126,7 +82,8 @@ def trace_joints(video, curr_joints):
 
 def show_frame(bw_frame, points):
     plt.imshow(bw_frame)
-    plt.scatter(x=points[:, 0], y=points[:, 1], c='r', s=40)
+    plt.scatter(x=points[:, 0], y=points[:, 1], c=['#397916', '#8C164F', '#5F8EEB', '#CA505D', '#9B4196', '#612006',
+                                                   '#9AFAC4', '#CF91E1', '#A68875', '#5F3881', '#837FE0', '#D9AFB4', '#C19AE7', '#4EF727', '#00A140'], s=40)
     plt.show()
 
 
