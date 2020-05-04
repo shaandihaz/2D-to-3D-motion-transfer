@@ -2,6 +2,8 @@ import numpy as np
 
 
 
+
+
 # Finds the next set of 3d points given an initial frame with 2d and 3d points,
 # the next set of 2d points, the camera projection matrix, and the graph describing
 # the fixed distances between the points
@@ -50,7 +52,8 @@ def find_next_on_ray(point_3d, point_3d_old, ray, dist):
     v1 = closest - point_3d
     closest_dist = np.linalg.norm(v1)
     if closest_dist >= dist:
-        return ((v1 / closest_dist) * dist) + point_3d
+        return closest
+        #return ((v1 / closest_dist) * dist) + point_3d
     else:
         t = np.sin(np.arccos(closest_dist/dist)) * dist
         a = closest + (ray.dir * t)
@@ -61,9 +64,11 @@ def find_next_on_ray(point_3d, point_3d_old, ray, dist):
             return a
     pass
 
-# This function will take in 2d points and the projection matrix and get 3D rays
+# This function will take in 2d points and the intrinsic matrix and get 3D rays
 # that pass through each 2d point
-def points_to_rays(points_2d, proj_mat):
+def points_to_rays(points_2d, K):
     # Note: ray.dir must be normalized
+    
+    
     return 
 
