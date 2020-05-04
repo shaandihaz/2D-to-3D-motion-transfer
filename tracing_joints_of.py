@@ -43,10 +43,28 @@ def get_interest_point(image, feature_width):
 
     return x, y
 
+
+def bound(joint_coords, image):
+    np.clip(joint_coords[:, 0], a_min=0,
+            a_max=image.shape[1], out=joint_coords[:, 0])
+    np.clip(joint_coords[:, 1], a_min=0,
+            a_max=image.shape[0], out=joint_coords[:, 1])
+    return joint_coords
+
+
 # use more algo like scene detection to match kernel instead of matching point
 # calculate dense optical flow around box of confirmed feature
-# 
-def get_next_frame_joints(curr_frame, joint_list):
+#
+scale = 0.5
+
+
+def est_next_point(old_point, curr_point):
+    y_diff = curr_point[0] - old_point[0]
+    x_diff = curr_point[1] - old_point[1]
+    return scale * np.array([curr_point[0] + y_diff, curr_point[1] + x_diff])
+
+
+def get_next_frame_joints_lk(par_frame, curr_frame, par_joints, grand_joints):
     '''
     Inputs: curr_frame - the current frame of the video
             joint_list - an n X 2 array, where n is the number of joints and holds the xy coords of each joint
@@ -55,18 +73,22 @@ def get_next_frame_joints(curr_frame, joint_list):
 
     # go through joint_list of previous frame, crop image to size around each joint, put in get_interest_point, grab
     # new coords, put them in joint_coords of current frame, return list of joints.
-    joint_coords = []
-    for joint in joint_list:
-        x, y = get_interest_point(
-            # grab most significant 2D point in the 64x64 subimage around joint
-            curr_frame[np.max([joint[1] - 32, 0]):joint[1] + 32, joint[0] - 32:joint[0] + 32], 16)
-        new_joint = [x + joint[0] - 32, y + joint[1] - 32]
-        joint_coords.append(new_joint)
-        # cv2.calcOpticalFlowPyrLK()
-    return np.asarray(joint_coords)
+    lk_params = dict(winSize=(50, 50),
+                     maxLevel=3)
+    old_pts = np.float32(par_joints)
+    np.reshape(old_pts, (-1, 1, 2))
+    next_joints, stat, err = cv2.calcOpticalFlowPyrLK(
+        par_frame, curr_frame, old_pts, None, **lk_params)
+    # make list
+    # if good point, don't do anything
+    #
+    for i in range(stat.shape[0]):
+        if stat[i] == 0:
+            next_joints[i] = est_next_point(grand_joints[i], par_joints[i])
+    return bound(np.asarray(next_joints), curr_frame)
 
 
-def trace_joints(video, joint_list):
+def trace_joints(video, curr_joints):
     '''
     input: video - the video that we're are tracing forward
            joint_list - the list of coordinates of joints for the first frame
@@ -76,26 +98,29 @@ def trace_joints(video, joint_list):
     video_joint_list = []
     # takes out the first frame
     print("Taking out first frame.")
-    ret, frame = video.read()
-    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    show_frame(frame, joint_list)
+    ret, old_frame = video.read()
+    old_frame = cv2.cvtColor(old_frame, cv2.COLOR_BGR2GRAY)
+    show_frame(old_frame, curr_joints)
 
     # for each frame, it adds the joint list of the previous frame into a list and then
     # uses interest_points to find the joint list of the current frame, and repeats
-    ret, frame = video.read()
+    ret, new_frame = video.read()
+    old_joints = curr_joints
     i = 2
     while ret:
+        new_frame = cv2.cvtColor(new_frame, cv2.COLOR_BGR2GRAY)
 
-        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-
-        print("Frame {}".format(i))
         if i % 10 == 0:
-            show_frame(frame, joint_list)
+            show_frame(new_frame, curr_joints)
         i += 1
-        new_joints = joint_list
+        new_joints = curr_joints
         video_joint_list.append(new_joints)
-        joint_list = get_next_frame_joints(frame, joint_list)
-        ret, frame = video.read()
+        next_joints = get_next_frame_joints_lk(
+            old_frame, new_frame, curr_joints, old_joints)
+        old_joints = curr_joints
+        curr_joints = next_joints
+        old_frame = new_frame
+        ret, new_frame = video.read()
     return np.asarray(video_joint_list)
 
 
