@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 from skimage import filters, feature, img_as_int
 from skimage.measure import regionprops
 from scipy.ndimage import convolve, sobel
+from scipy.spatial.distance import cdist
 import cv2
 
 
@@ -100,14 +101,32 @@ def get_features(image, x, y, feature_width):
             descriptor = descriptor / norm
             descriptor = [xs, ys] + descriptor
             features.append(descriptor)
-    features = np.asarray(features)
+    #features = np.asarray(features)
     return features
 
 def match_features(joint_features, frame_features):
+    new_joints = []
+    for joint in joint_features:
+        filtered_frame_feat = []
+        frame_points = []
+        for feat in frame_features:
+            if joint[0] - 8 <= frame_features[0] <= joint[0] + 8 and joint[1] - 8 <= frame_features[1] <= joint[1] + 8:
+                frame_points.append([feat.pop(0), feat.pop(0)])
+                filtered_frame_feat.append(feat)
+        arr_joint = np.asarray(joint)
+        arr_frame_feat = np.asarray(filtered_frame_feat)
+        dist_arr = cdist(arr_joint, arr_frame_feat)
+        new_joint = frame_points[np.argsort(dist_arr)[0]]
+        new_joints.append(new_joint)
+    return new_joints
+
+        
+        
+
     
 
 
-def get_next_frame_joints(curr_frame, joint_list):
+def get_next_frame_joints(curr_frame, joint_features):
     '''
     Inputs: curr_frame - the current frame of the video
             joint_list - an n X 2 array, where n is the number of joints and holds the xy coords of each joint
@@ -117,7 +136,6 @@ def get_next_frame_joints(curr_frame, joint_list):
     # go through joint_list of previous frame, crop image to size around each joint, put in get_interest_point, grab
     # new coords, put them in joint_coords of current frame, return list of joints.
 
-    joint_coords = []
     '''
     #this is leftover code from the other version
     for joint in joint_list:
@@ -127,7 +145,10 @@ def get_next_frame_joints(curr_frame, joint_list):
         new_joint = [x,y]
         joint_coords.append(new_joint)
     '''
-    return joint_coords
+    (x, y) = get_interest_points(curr_frame, 16)
+    frame_feat = get_features(curr_frame, x, y, 16)
+
+    return match_features(joint_features, frame_feat)
 
 
 def trace_joints(video, joint_list):
@@ -153,7 +174,8 @@ def trace_joints(video, joint_list):
     while ret:
         new_joints = joint_list
         video_joint_list.append(new_joints)
-        joint_list = get_next_frame_joints(frame, joint_list)
+        joint_list = get_next_frame_joints(frame, first_features)
+        first_features = get_features(frame, joint_list[:, 1], joint_list[:, 0], 16)
         ret, frame = video.read()
     return np.asarray(video_joint_list)
 
