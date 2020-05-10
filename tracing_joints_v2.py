@@ -14,6 +14,8 @@ Idea:
     a. Calculate the optical flow of large area around joint.
     b. Match area to joint feature
 '''
+
+
 def get_interest_points(image, feature_width):
     '''
     Returns interest points for the input image
@@ -105,10 +107,11 @@ def get_features(image, x, y, feature_width):
             descriptor[descriptor > 0.2] = 0.2
             norm = np.linalg.norm(descriptor)
             descriptor = descriptor / norm
-            descriptor = [xs, ys] + descriptor
+            descriptor = np.hstack(([xs, ys], descriptor))
+            descriptor = list(descriptor)
             features.append(descriptor)
-    #features = np.asarray(features)
     return features
+
 
 def match_features(joint_features, frame_features):
     new_joints = []
@@ -116,20 +119,22 @@ def match_features(joint_features, frame_features):
         filtered_frame_feat = []
         frame_points = []
         for feat in frame_features:
-            if joint[0] - 8 <= frame_features[0] <= joint[0] + 8 and joint[1] - 8 <= frame_features[1] <= joint[1] + 8:
+            if (joint[0] - 8 <= feat[0] <= joint[0] + 8) and (joint[1] - 8 <= feat[1] <= joint[1] + 8):
+                print(type(feat))
                 frame_points.append([feat.pop(0), feat.pop(0)])
                 filtered_frame_feat.append(feat)
+        joint.pop(0)
+        joint.pop(0)
         arr_joint = np.asarray(joint)
         arr_frame_feat = np.asarray(filtered_frame_feat)
+        print(type(arr_joint))
+        np.reshape(arr_joint, (1, 128))
+        print(arr_joint.shape)
         dist_arr = cdist(arr_joint, arr_frame_feat)
+        # print(dist_arr)
         new_joint = frame_points[np.argsort(dist_arr)[0]]
         new_joints.append(new_joint)
     return new_joints
-
-        
-        
-
-    
 
 
 def get_next_frame_joints(curr_frame, joint_features):
@@ -141,8 +146,6 @@ def get_next_frame_joints(curr_frame, joint_features):
 
     # go through joint_list of previous frame, crop image to size around each joint, put in get_interest_point, grab
     # new coords, put them in joint_coords of current frame, return list of joints.
-
-
 
     joint_coords = []
 
@@ -176,18 +179,22 @@ def trace_joints(video, joint_list):
     if not ret:
         print("Failure to load video")
         return None
+    first_frame = cv2.cvtColor(first_frame, cv2.COLOR_BGR2GRAY)
     first_features = get_features(
         first_frame, joint_list[:, 1], joint_list[:, 0], 16)
     # for each frame, it adds the joint list of the previous frame into a list and then
     # uses interest_points to find the joint list of the current frame, and repeats
     ret, frame = video.read()
     while ret:
+        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         new_joints = joint_list
         video_joint_list.append(new_joints)
         joint_list = get_next_frame_joints(frame, first_features)
-        first_features = get_features(frame, joint_list[:, 1], joint_list[:, 0], 16)
+        first_features = get_features(
+            frame, joint_list[:, 1], joint_list[:, 0], 16)
         ret, frame = video.read()
     return np.asarray(video_joint_list)
+
 
 def read_video(v_name):
     '''
@@ -197,3 +204,33 @@ def read_video(v_name):
     '''
     vid = cv2.VideoCapture(v_name)
     return vid
+
+
+def main():
+    print("Getting video.")
+    plt.gray()
+    vid = read_video('../hd00_03.mp4')
+    # Make sure joint indices are integers
+    first_joints = np.asarray([
+        [1077, 930],
+        [1097, 779],
+        [1101, 651],
+        [1182, 946],
+        [1181, 780],
+        [1198, 659],
+        [1149, 629],
+        [1058, 628],
+        [1225, 636],
+        [1070, 540],
+        [1236, 558],
+        [1083, 431],
+        [1216, 424],
+        [1153, 322],
+        [1157, 390],
+    ])
+    res = trace_joints(vid, first_joints)
+    print(res)
+
+
+if __name__ == '__main__':
+    main()

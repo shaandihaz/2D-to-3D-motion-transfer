@@ -59,8 +59,8 @@ def get_next_frame_joints(curr_frame, joint_list):
     for joint in joint_list:
         x, y = get_interest_point(
             # grab most significant 2D point in the 64x64 subimage around joint
-            curr_frame[np.max([joint[1] - 32, 0]):joint[1] + 32, joint[0] - 32:joint[0] + 32], 16)
-        new_joint = [x + joint[0] - 32, y + joint[1] - 32]
+            curr_frame[np.max([joint[1] - 16, 0]):joint[1] + 16, joint[0] - 16:joint[0] + 16], 16)
+        new_joint = [x + joint[0] - 16, y + joint[1] - 16]
         joint_coords.append(new_joint)
         # cv2.calcOpticalFlowPyrLK()
     return np.asarray(joint_coords)
