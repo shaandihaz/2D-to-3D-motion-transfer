@@ -10,18 +10,18 @@ import json
 def bound(joint_coords, image):
     old_joints = joint_coords
     np.clip(joint_coords[:, 0], a_min=0,
-            a_max=image.shape[1], out=joint_coords[:, 0])
+            a_max=image.shape[1]-1, out=joint_coords[:, 0])
     np.clip(joint_coords[:, 1], a_min=0,
-            a_max=image.shape[0], out=joint_coords[:, 1])
+            a_max=image.shape[0]-1, out=joint_coords[:, 1])
     return joint_coords
 
 # calculate dense optical flow around box of confirmed feature
 
-def est_next_point(old_point, curr_point):
-    scale = 0.5
-    y_diff = curr_point[0] - old_point[0]
-    x_diff = curr_point[1] - old_point[1]
-    return np.array([curr_point[0] + scale * y_diff, curr_point[1] + scale * x_diff])
+
+def est_next_points(old_points, curr_points):
+    scale = 0.05
+    diff = curr_points - old_points
+    return curr_points + scale * diff
 
 
 def get_next_frame_joints_lk(par_frame, curr_frame, par_joints, grand_joints):
@@ -35,12 +35,13 @@ def get_next_frame_joints_lk(par_frame, curr_frame, par_joints, grand_joints):
                      maxLevel=3)
     old_pts = np.float32(par_joints)
     np.reshape(old_pts, (-1, 1, 2))
+    est = est_next_points(grand_joints, par_joints)
     next_joints, stat, err = cv2.calcOpticalFlowPyrLK(
-        par_frame, curr_frame, old_pts, None, **lk_params)
+        par_frame, curr_frame, old_pts, est, **lk_params)
 
     for i in range(stat.shape[0]):
         if stat[i] == 0:
-            next_joints[i] = est_next_point(grand_joints[i], par_joints[i])
+            next_joints[i] = est[i]
     return bound(np.asarray(next_joints), curr_frame)
 
 
@@ -56,7 +57,7 @@ def trace_joints(video, curr_joints):
     print("Taking out first frame.")
     ret, old_frame = video.read()
     old_frame = cv2.cvtColor(old_frame, cv2.COLOR_BGR2GRAY)
-    show_frame(old_frame, curr_joints)
+    show_frame(old_frame, curr_joints, 1)
 
     # for each frame, it adds the joint list of the previous frame into a list and then
     # uses interest_points to find the joint list of the current frame, and repeats
@@ -66,8 +67,8 @@ def trace_joints(video, curr_joints):
     while ret:
         new_frame = cv2.cvtColor(new_frame, cv2.COLOR_BGR2GRAY)
 
-        if i % 10 == 0:
-            show_frame(new_frame, curr_joints)
+        if i >= 150:
+            show_frame(new_frame, curr_joints, i)
         i += 1
         new_joints = curr_joints
         video_joint_list.append(new_joints)
@@ -80,11 +81,14 @@ def trace_joints(video, curr_joints):
     return np.asarray(video_joint_list)
 
 
-def show_frame(bw_frame, points):
+def show_frame(bw_frame, points, i):
     plt.imshow(bw_frame)
+
     plt.scatter(x=points[:, 0], y=points[:, 1], c=['#397916', '#8C164F', '#5F8EEB', '#CA505D', '#9B4196', '#612006',
                                                    '#9AFAC4', '#CF91E1', '#A68875', '#5F3881', '#837FE0', '#D9AFB4', '#C19AE7', '#4EF727', '#00A140'], s=40)
-    plt.show()
+    plt.savefig("Img{}".format(i))
+    plt.close()
+    # plt.show()
 
 
 def read_video(v_name):

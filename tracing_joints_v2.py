@@ -5,7 +5,14 @@ from skimage.measure import regionprops
 from scipy.ndimage import convolve, sobel
 import cv2
 
-
+# not looking for interest points
+'''
+Idea:
+1. Get features of joints
+2. For each joint:
+    a. Calculate the optical flow of large area around joint.
+    b. Match area to joint feature
+'''
 def get_interest_points(image, feature_width):
     '''
     Returns interest points for the input image
@@ -79,7 +86,6 @@ def get_features(image, x, y, feature_width):
         yhb = ys + width*2
         descriptor = []
         if (xlb < 0 or ylb < 0 or xhb >= image.shape[1] or yhb >= image.shape[0]):
-
             continue
         else:
             for i in range(xlb, xhb, width):
@@ -114,6 +120,7 @@ def get_next_frame_joints(curr_frame, joint_list):
     # new coords, put them in joint_coords of current frame, return list of joints.
 
     joint_coords = []
+
     '''
     #this is leftover code from the other version
     for joint in joint_list:
