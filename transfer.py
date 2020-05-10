@@ -1,17 +1,66 @@
 import numpy as np
 
 
+class Ray:
+    def __init__(self, o, direction):
+        self.dir = direction
+        self.o = o
 
+class GraphNode:
+    def __init__(self, ind):
+        self.neighbors = []
+        self.ind = ind
+
+    def add_neighbor(self, neighbor, points, recur):
+        self.neighbors.append((neighbor, np.linalg.norm(points[neighbor.ind] - points[self.ind])))
+        if recur:
+            neighbor.append(self, points, False)
+
+def build_graph(points_2d):
+    graph = []
+    for i in range(points_2d.shape[0]):
+        graph.append(GraphNode(i))
+    graph[13].add_neighbor(graph[14], points_2d, True)
+    graph[14].add_neighbor(graph[12], points_2d, True)
+    graph[14].add_neighbor(graph[9], points_2d, True)
+    graph[12].add_neighbor(graph[10], points_2d, True)
+    graph[10].add_neighbor(graph[8], points_2d, True)
+    graph[11].add_neighbor(graph[9], points_2d, True)
+    graph[7].add_neighbor(graph[11], points_2d, True)
+    graph[6].add_neighbor(graph[14], points_2d, True)
+    graph[6].add_neighbor(graph[2], points_2d, True)
+    graph[6].add_neighbor(graph[5], points_2d, True)
+    graph[2].add_neighbor(graph[1], points_2d, True)
+    graph[1].add_neighbor(graph[0], points_2d, True)
+    graph[5].add_neighbor(graph[4], points_2d, True)
+    graph[4].add_neighbor(graph[3], points_2d, True)
+
+    
+
+
+# Main loop:
+#   find 2d points init
+#   call find_initial
+#   find next set of 2d points
+#   repeat :
+#       call find_next
+#       find next set of 2d points
+#
+#
+def find_initial(points_2d):
+    graph = build_graph(points_2d)
+    _, points = points_to_rays(points_2d)
+    return points, graph
 
 
 # Finds the next set of 3d points given an initial frame with 2d and 3d points,
 # the next set of 2d points, the camera projection matrix, and the graph describing
 # the fixed distances between the points
-def find_next(points_2d_a, points_2d_b, points_3d_a, proj_mat, graph)
+def find_next(points_2d_a, points_2d_b, points_3d_a, graph)
     # Not sure if this is the best option, but trying it for now, this is the one we use to assume our starting point
     closest_ind = find_closest_ind(points_2d_a, points_2d_b)
     # Find all the rays
-    rays = points_to_rays(points_2d_b, proj_mat)
+    rays, _ = points_to_rays(points_2d_b)
     # find the closest point for the starting point we selected
     closest = closest_on_ray(points_3d_a[closest_ind], rays[closest_ind])
     done = {}
@@ -64,11 +113,16 @@ def find_next_on_ray(point_3d, point_3d_old, ray, dist):
             return a
     pass
 
-# This function will take in 2d points and the intrinsic matrix and get 3D rays
-# that pass through each 2d point
-def points_to_rays(points_2d, K):
-    # Note: ray.dir must be normalized
-    
-    
-    return 
+
+
+# This function will take in 2d points and shoot rays 
+def points_to_rays(points_2d):
+    camera_dist = np.amax(np.flatten(points_2d))
+    points = np.append(points_2d, camera_dist, axis=1)
+    rays = []
+    for i in range(points_2d.shape[0]):
+        direction = np.linalg.norm(points[i])
+        ray = Ray(np.array([0.0, 0.0, 0.0]), direction)
+        rays.append(ray)
+    return rays, points
 
