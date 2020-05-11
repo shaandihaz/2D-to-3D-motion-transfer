@@ -97,9 +97,9 @@ def show_frame(bw_frame, points, i):
 
     plt.scatter(x=points[:, 0], y=points[:, 1], c=['#397916', '#8C164F', '#5F8EEB', '#CA505D', '#9B4196', '#612006',
                                                    '#9AFAC4', '#CF91E1', '#A68875', '#5F3881', '#837FE0', '#D9AFB4', '#C19AE7', '#4EF727', '#00A140'], s=40)
-    plt.savefig("Img{}".format(i))
+    #plt.savefig("Img{}".format(i))
+    #plt.show()
     plt.close()
-    
     #plt.show()
     print("Attempting 3d...")
     if points3 is None:
@@ -111,12 +111,20 @@ def show_frame(bw_frame, points, i):
     ax.axes.set_xlim3d(0, 2000) 
     ax.axes.set_ylim3d(0, 1100) 
     ax.axes.set_zlim3d(0, 2200)
-    ax.scatter3D(xs=points3[:, 0], zs=points3[:, 1], ys=points3[:, 2], c=['#397916', '#8C164F', '#5F8EEB', '#CA505D', '#9B4196', '#612006',
+    ax.scatter3D(xs=points3[:, 0], zs=np.subtract(2000.0, points3[:, 1]), ys=points3[:, 2], c=['#397916', '#8C164F', '#5F8EEB', '#CA505D', '#9B4196', '#612006',
                                                    '#9AFAC4', '#CF91E1', '#A68875', '#5F3881', '#837FE0', '#D9AFB4', '#C19AE7', '#4EF727', '#00A140'], s=40)
     
-
+    ax.azim = -85
+    ax.elev = 10
     plt.savefig("3dImg{}".format(i))
+
+    #if i > 350:
+    #    plt.show()
+    #if i < 400:
     plt.close()
+    #else:
+        #plt.show()
+        #plt.close()
     #plt.show()
 
 
