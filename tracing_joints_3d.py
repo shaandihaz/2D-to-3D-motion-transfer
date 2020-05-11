@@ -95,7 +95,7 @@ def trace_joints(video, curr_joints, show2D=False, save2D=False, show3D=False, s
     while ret:  # will be false when video ends or there is a read error
         new_frame = cv2.cvtColor(new_frame, cv2.COLOR_BGR2GRAY)  # bw image
 
-        if i >= 150 and i % 10 == 0:
+        if i >= 150:
             visualize_2d(new_frame, curr_joints, i, show2D, save2D)
             visualize_3d(curr_joints, i, show3D, save3D)
 
@@ -151,9 +151,9 @@ def visualize_3d(points, i, show3D, save3D):
     points_prev = np.copy(points)
     ax = plt.axes(projection='3d')
     ax.axes.set_xlim3d(0, 2000)
-    ax.axes.set_ylim3d(0, 1100)
-    ax.axes.set_zlim3d(0, 2200)
-    ax.scatter3D(xs=points3[:, 0], zs=np.subtract(2000.0, points3[:, 1]), ys=points3[:, 2], c=['#397916', '#8C164F', '#5F8EEB', '#CA505D', '#9B4196', '#612006',
+    ax.axes.set_ylim3d(0, 2200)
+    ax.axes.set_zlim3d(0, 1100)
+    ax.scatter3D(xs=points3[:, 0], zs=np.subtract(1100.0, points3[:, 1]), ys=points3[:, 2], c=['#397916', '#8C164F', '#5F8EEB', '#CA505D', '#9B4196', '#612006',
                                                                                                '#9AFAC4', '#CF91E1', '#A68875', '#5F3881', '#837FE0', '#D9AFB4', '#C19AE7', '#4EF727', '#00A140'], s=40)
     ax.azim = -85
     ax.elev = 10
