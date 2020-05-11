@@ -120,26 +120,14 @@ def main():
     plt.gray()
     vid = read_video('../hd00_03.mp4')
     # Make sure joint indices are integers
-    first_joints = np.asarray([
-        [1077, 930],
-        [1097, 779],
-        [1101, 651],
-        [1182, 946],
-        [1181, 780],
-        [1198, 659],
-        [1149, 629],
-        [1058, 628],
-        [1225, 636],
-        [1070, 540],
-        [1236, 558],
-        [1083, 431],
-        [1216, 424],
-        [1153, 322],
-        [1157, 390],
-    ])
+    start_coords = np.genfromtxt('start_coords.csv', delimiter=',')
+
+    start_coords = np.floor(start_coords)
+    print(start_coords)
+
+    first_joints = start_coords
     res = trace_joints(vid, first_joints)
     print(res)
-
 
 if __name__ == '__main__':
     main()
