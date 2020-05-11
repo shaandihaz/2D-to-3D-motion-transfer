@@ -11,6 +11,9 @@ import transfer
 
 
 def bound(joint_coords, image):
+    """
+    Ensure joint coordinates are in the image using np.clip.
+    """
     old_joints = joint_coords
     np.clip(joint_coords[:, 0], a_min=0,
             a_max=image.shape[1]-1, out=joint_coords[:, 0])
@@ -22,46 +25,65 @@ def bound(joint_coords, image):
 
 
 def est_next_points(old_points, curr_points):
+    """
+    Estimates next points by continuing the motion from last two frames.
+    """
     scale = 0.05
+    # motion from grandparent frame to parent frame.
     diff = curr_points - old_points
     return curr_points + scale * diff
 
 
-def get_next_frame_joints_lk(par_frame, curr_frame, par_joints, grand_joints):
+def get_next_frame_joints_sparse(par_frame, curr_frame, par_joints, grand_joints):
     '''
-    Inputs: curr_frame - the current frame of the video
-            joint_list - an n X 2 array, where n is the number of joints and holds the xy coords of each joint
-    outputs: a list of joints for the current frame
+    Given two consecutive frames with the joints of the last two frames, finds the joint coordinates of the next frame.
+    Inputs: 
+            par_frame    - the previous frame of the video
+            curr_frame   - the current frame of the video
+            par_joints   - the joint coordinates in par_frame
+            grand_joints - the joint coordinates in the frame before par_frame
+    outputs: the estimated joint coordinates in curr_frame
     '''
 
-    lk_params = dict(winSize=(50, 50),
-                     maxLevel=3)
+    # formats inputs for calcOpticalFlow
+    lk_params = dict(winSize=(50, 50),  # window size of each pyrimid level
+                     maxLevel=3)  # number of pyramid levels
+
+    # old_pts must be a float32 array of size (num_joints) x 1 x 2
     old_pts = np.float32(par_joints)
     np.reshape(old_pts, (-1, 1, 2))
+
+    # first estimate of curr_frame's joint coords
     est = est_next_points(grand_joints, par_joints)
+
+    # estimates next points using optical flow
     next_joints, stat, err = cv2.calcOpticalFlowPyrLK(
         par_frame, curr_frame, old_pts, est, **lk_params)
 
+    # if stat[i] = 0, then our estimate is wrong, so we just make it our initial estimate.
     for i in range(stat.shape[0]):
         if stat[i] == 0:
             next_joints[i] = est[i]
+
+    # joints must be within image
     return bound(np.asarray(next_joints), curr_frame)
 
 
-def trace_joints(video, curr_joints):
+def trace_joints(video, curr_joints, show2D=False, save2D=False, show3D=False, save3D=False):
     '''
+    Calculates the joint locations throughout the video using the joint locations at frame 0.
     input: video - the video that we're are tracing forward
            joint_list - the list of coordinates of joints for the first frame
     output: a list of jointlists for the whole video
 
     '''
     video_joint_list = []
-    # takes out the first frame
+
     print("Taking out first frame.")
     ret, old_frame = video.read()
-    print(old_frame)
-    old_frame = cv2.cvtColor(old_frame, cv2.COLOR_BGR2GRAY)
-    show_frame(old_frame, curr_joints, 1)
+    old_frame = cv2.cvtColor(old_frame, cv2.COLOR_BGR2GRAY)  # bw image
+    visualize_2d(old_frame, curr_joints, 1, show2D, save2D)
+    visualize_3d(curr_joints, 1, show3D, save3D)
 
     # for each frame, it adds the joint list of the previous frame into a list and then
     # uses interest_points to find the joint list of the current frame, and repeats
@@ -71,12 +93,13 @@ def trace_joints(video, curr_joints):
     while ret:
         new_frame = cv2.cvtColor(new_frame, cv2.COLOR_BGR2GRAY)
 
-        if i >= 150:
-            show_frame(new_frame, curr_joints, i)
+        if i >= 150 and i % 10 == 0:
+            visualize_2d(new_frame, curr_joints, i, show2D, save2D)
+            visualize_3d(curr_joints, i, show3D, save3D)
         i += 1
         new_joints = curr_joints
         video_joint_list.append(new_joints)
-        next_joints = get_next_frame_joints_lk(
+        next_joints = get_next_frame_joints_sparse(
             old_frame, new_frame, curr_joints, old_joints)
         old_joints = curr_joints
         curr_joints = next_joints
@@ -89,40 +112,45 @@ points3 = None
 points_prev = None
 graph = None
 
-def show_frame(bw_frame, points, i):
+
+def visualize_3d(points, i, show3D, save3D):
+    if not show3D and not save3D:
+        return
     global points3
     global points_prev
     global graph
-    plt.imshow(bw_frame)
-
-    plt.scatter(x=points[:, 0], y=points[:, 1], c=['#397916', '#8C164F', '#5F8EEB', '#CA505D', '#9B4196', '#612006',
-                                                   '#9AFAC4', '#CF91E1', '#A68875', '#5F3881', '#837FE0', '#D9AFB4', '#C19AE7', '#4EF727', '#00A140'], s=40)
-    plt.savefig("Img{}".format(i))
-
-    # Uncomment this to display 2D
-    #plt.show()
-    plt.close()
-    print("Attempting 3d...")
     if points3 is None:
         points3, graph = transfer.find_initial(points)
     else:
         points3 = transfer.find_next(points_prev, points, points3, graph)
     points_prev = np.copy(points)
     ax = plt.axes(projection='3d')
-    ax.axes.set_xlim3d(0, 2000) 
-    ax.axes.set_ylim3d(0, 1100) 
+    ax.axes.set_xlim3d(0, 2000)
+    ax.axes.set_ylim3d(0, 1100)
     ax.axes.set_zlim3d(0, 2200)
     ax.scatter3D(xs=points3[:, 0], zs=np.subtract(2000.0, points3[:, 1]), ys=points3[:, 2], c=['#397916', '#8C164F', '#5F8EEB', '#CA505D', '#9B4196', '#612006',
-                                                   '#9AFAC4', '#CF91E1', '#A68875', '#5F3881', '#837FE0', '#D9AFB4', '#C19AE7', '#4EF727', '#00A140'], s=40)
-    
+                                                                                               '#9AFAC4', '#CF91E1', '#A68875', '#5F3881', '#837FE0', '#D9AFB4', '#C19AE7', '#4EF727', '#00A140'], s=40)
     ax.azim = -85
     ax.elev = 10
-    plt.savefig("3dImg{}".format(i))
-    
-    # Uncomment this to display 3D
-    #plt.show()
-    plt.close()
-    
+    if show3D:
+        plt.show()
+    else:
+        plt.savefig("3dImg{}".format(i))
+        plt.close()
+
+
+def visualize_2d(bw_frame, points, i, show2D, save2D):
+    if not show2D and not save2D:
+        return
+    plt.imshow(bw_frame)
+
+    plt.scatter(x=points[:, 0], y=points[:, 1], c=['#397916', '#8C164F', '#5F8EEB', '#CA505D', '#9B4196', '#612006',
+                                                   '#9AFAC4', '#CF91E1', '#A68875', '#5F3881', '#837FE0', '#D9AFB4', '#C19AE7', '#4EF727', '#00A140'], s=40)
+    if show2D:
+        plt.show()
+    else:
+        plt.savefig("Img{}".format(i))
+        plt.close()
 
 
 def read_video(v_name):
@@ -159,7 +187,7 @@ def main():
         [1153, 322],
         [1157, 390],
     ])
-    res = trace_joints(vid, first_joints)
+    res = trace_joints(vid, first_joints, save=False, show=False)
     print(res)
 
 
