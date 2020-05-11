@@ -1,21 +1,33 @@
 import numpy as np
 
-
+# Represents a ray (in hindsight, since we always use the same origin, we could modify
+# this to not contain the origin and just have a predifined camera origin, oh well
+#   o : the origin as a vector of length 3
+#   dir : the direction as a vector of length 3 (should be normalized)
 class Ray:
     def __init__(self, o, direction):
         self.dir = direction
         self.o = o
 
+# Represents a node in our graph (i.e., a joint that has fixed distances to other joints)
+#   ind : the index in the point array
+#   neighbors : a list of tuples, first item is a neighbor and second item is the distance to that neighbor
 class GraphNode:
     def __init__(self, ind):
         self.neighbors = []
         self.ind = ind
-
+    
+    # Adds a neighbor, and then will add itself as a neighbor to the neighbor
+    #   neighbor : the GraphNode neighbor
+    #   points : 2D positions of the points
+    #   recur : whether or not to make a recursive call (add yourself as a neighbor)
     def add_neighbor(self, neighbor, points, recur):
         self.neighbors.append((neighbor, np.linalg.norm(points[neighbor.ind] - points[self.ind])))
         if recur:
             neighbor.add_neighbor(self, points, False)
 
+# Build a graph given 2d points, note that we hard-code the connectivity here
+# returns : a list of GraphNode
 def build_graph(points_2d):
     graph = []
     for i in range(points_2d.shape[0]):
@@ -39,15 +51,7 @@ def build_graph(points_2d):
     
 
 
-# Main loop:
-#   find 2d points init
-#   call find_initial
-#   find next set of 2d points
-#   repeat :
-#       call find_next
-#       find next set of 2d points
-#
-#
+# Finds the initial graph and 3D points for the first frame
 def find_initial(points_2d):
     graph = build_graph(points_2d)
     _, points = points_to_rays(points_2d)
@@ -55,7 +59,7 @@ def find_initial(points_2d):
 
 
 # Finds the next set of 3d points given an initial frame with 2d and 3d points,
-# the next set of 2d points, the camera projection matrix, and the graph describing
+# the next set of 2d points, and the graph describing
 # the fixed distances between the points
 def find_next(points_2d_a, points_2d_b, points_3d_a, graph):
     # Not sure if this is the best option, but trying it for now, this is the one we use to assume our starting point
@@ -64,28 +68,29 @@ def find_next(points_2d_a, points_2d_b, points_3d_a, graph):
     rays, _ = points_to_rays(points_2d_b)
     # find the closest point for the starting point we selected
     closest = closest_on_ray(points_3d_a[closest_ind], rays[closest_ind])
+    # nodes we have visited already and have their neighbors visited
     done = {}
+    # nodes we have visited already, but still need to check if we visited their neighbors too
     toDo = {closest_ind : (graph[closest_ind], closest)}
+    # keep track of the number of times we "step_back" when the closest distance is too far
     attempts = 0
     while len(toDo) > 0:
         # Get an arbitrary node
         ind = list(toDo.keys())[0]
         node = toDo.pop(ind)
         done[ind] = node
-        #attempt = False
         # Iterate through the neighbors to find their estimated 3D positions, then add them to todo
         for neighbor in node[0].neighbors:
             if not (neighbor[0].ind in done or neighbor[0].ind in toDo):
                 step_back, tmp_point = find_next_on_ray(node[1], points_3d_a[neighbor[0].ind], rays[neighbor[0].ind], neighbor[1])
+                # In this case, we are neither updating the source 3D position nor the distances in our graph 
                 if step_back is None:
                     toDo[neighbor[0].ind] = (neighbor[0], tmp_point)
                 else:
-                    print("stepping back...")
-                    print(node[1])
                     attempts = attempts + 1
-                    print(points_3d_a[neighbor[0].ind])
-                    print(step_back)
                     if attempts > 10:
+                        # If we tried updating one of our 3D positions at least 10 times, then we decide to accept
+                        # the closest point and just update the distance in our graph
                         new_dist = np.linalg.norm(node[1] - tmp_point)
                         for tmp_ind in range(len(node[0].neighbors)):
                             if node[0].neighbors[tmp_ind][0].ind == neighbor[0].ind:
@@ -94,7 +99,9 @@ def find_next(points_2d_a, points_2d_b, points_3d_a, graph):
                             if neighbor[0].neighbors[tmp_ind][0].ind == node[0].ind:
                                 neighbor[0].neighbors[tmp_ind] = (node[0], new_dist)
                         toDo[neighbor[0].ind] = (neighbor[0], tmp_point)
-                    else: 
+                    else:
+                        # If we have not attempted to update 3D positions 10 times, then we reset our visited dictionaries
+                        # and then update the 3D position instead of any distances in our graph
                         toDo = {}
                         done = {}
                         toDo[node[0].ind] = (node[0], step_back)
@@ -103,14 +110,11 @@ def find_next(points_2d_a, points_2d_b, points_3d_a, graph):
     points_3d_b = np.zeros(points_3d_a.shape)
     for ind in done:
         points_3d_b[ind] = done[ind][1]
-        #points_3d_b[ind] = closest_on_ray(points_3d_a[ind], rays[ind]) 
     return points_3d_b
 
 # Find the closest point on a ray to a given 3d point 
 def closest_on_ray(point_3d, ray):
     v1 = point_3d - ray.o
-    #theta = np.arccos(np.dot(ray.dir, v1)/ (hyp * np.linalg.norm(ray.dir)))
-    #t = np.cos(theta) * hyp
     t = np.dot(ray.dir, v1)
     return (t * ray.dir) + ray.o
 
@@ -118,7 +122,6 @@ def closest_on_ray(point_3d, ray):
 # sets that are closest to each other in euclidean distance
 def find_closest_ind(points_2d_a, points_2d_b):
     return np.argmin(np.sum(np.square(points_2d_a - points_2d_b), axis=1))
-    pass
 
 # This function will find the point that lies on a given ray that has
 # a specified distance away from a given point and is the closest
@@ -127,24 +130,14 @@ def find_next_on_ray(point_3d, point_3d_old, ray, dist):
     v1 = closest - point_3d
     closest_dist = np.linalg.norm(v1)
     if np.abs(closest_dist - dist) <= 0.001:
+        # Case (1)
         return None, closest
     elif closest_dist >= dist:
-        #print("in function")
-        #print(ray.o)
-        #print(dist)
-        #print(point_3d)
+        # Case (3)
         v2 = point_3d - ray.o
-        #norm_v2 = v2/np.linalg.norm(v2)
-
-        # This is the case where we step backward
-        #print("in function")
-        #print(dist/np.sin(np.arccos(np.clip(np.dot(ray.dir, norm_v2), -1.0, 1.0))))
-        #print(dist)
-        #print(closest_dist)
         return (dist/closest_dist) * v2 + ray.o, closest
-        #return 0.99 * norm_v2 * dist/np.sin(np.arccos(np.clip(np.dot(ray.dir, norm_v2), -1.0, 1.0))), None
-        #return ((v1 / closest_dist) * dist) + point_3d
     else:
+        # Case (2)
         t = np.sin(np.arccos(closest_dist/dist)) * dist
         a = closest + (ray.dir * t)
         b = closest - (ray.dir * t)
@@ -156,9 +149,9 @@ def find_next_on_ray(point_3d, point_3d_old, ray, dist):
 
 
 
-# This function will take in 2d points and shoot rays 
+# This function will take in 2d points and cast rays through them, returning the rays 
 def points_to_rays(points_2d):
-    camera_dist = 1080.0 #np.amax(np.flatten(points_2d))
+    camera_dist = 1080.0 
     points = np.insert(points_2d, 2, camera_dist, axis=1)
     rays = []
     for i in range(points_2d.shape[0]):
