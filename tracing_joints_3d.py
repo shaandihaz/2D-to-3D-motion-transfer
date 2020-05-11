@@ -71,41 +71,63 @@ def get_next_frame_joints_sparse(par_frame, curr_frame, par_joints, grand_joints
 
 def trace_joints(video, curr_joints, show2D=False, save2D=False, show3D=False, save3D=False):
     '''
-    Calculates the joint locations throughout the video using the joint locations at frame 0.
+    Calculates the joint locations throughout the video using the joint coords at frame 0.
     input: video - the video that we're are tracing forward
-           joint_list - the list of coordinates of joints for the first frame
-    output: a list of jointlists for the whole video
-
+           curr_joints - the list of joint coords in the first frame
+           The rest of the input refer to whether to save/show the results in 2D/3D.
+    output: a list of joint coords at each frame of the video
     '''
-    video_joint_list = []
+
+    video_joint_list = [curr_joints]
 
     print("Taking out first frame.")
-    ret, old_frame = video.read()
+    ret, old_frame = video.read()  # will be false if video has no frames
     old_frame = cv2.cvtColor(old_frame, cv2.COLOR_BGR2GRAY)  # bw image
+
+    # visualizes/saves 1st image
     visualize_2d(old_frame, curr_joints, 1, show2D, save2D)
     visualize_3d(curr_joints, 1, show3D, save3D)
 
-    # for each frame, it adds the joint list of the previous frame into a list and then
-    # uses interest_points to find the joint list of the current frame, and repeats
     ret, new_frame = video.read()
     old_joints = curr_joints
-    i = 2
-    while ret:
-        new_frame = cv2.cvtColor(new_frame, cv2.COLOR_BGR2GRAY)
+
+    i = 2  # counter for visualizer
+    while ret:  # will be false when video ends or there is a read error
+        new_frame = cv2.cvtColor(new_frame, cv2.COLOR_BGR2GRAY)  # bw image
 
         if i >= 150 and i % 10 == 0:
             visualize_2d(new_frame, curr_joints, i, show2D, save2D)
             visualize_3d(curr_joints, i, show3D, save3D)
-        i += 1
-        new_joints = curr_joints
-        video_joint_list.append(new_joints)
+
         next_joints = get_next_frame_joints_sparse(
             old_frame, new_frame, curr_joints, old_joints)
+
+        video_joint_list.append(next_joints)
+
+        # propagates joints and frames
         old_joints = curr_joints
         curr_joints = next_joints
         old_frame = new_frame
         ret, new_frame = video.read()
+        i += 1
     return np.asarray(video_joint_list)
+
+
+def visualize_2d(bw_frame, points, i, show2D, save2D):
+    """
+    Visualizes and/or saves an image of the 2D joint coordinates on top of the image.
+    """
+    if not show2D and not save2D:
+        return
+
+    plt.imshow(bw_frame)
+    plt.scatter(x=points[:, 0], y=points[:, 1], c=['#397916', '#8C164F', '#5F8EEB', '#CA505D', '#9B4196', '#612006',
+                                                   '#9AFAC4', '#CF91E1', '#A68875', '#5F3881', '#837FE0', '#D9AFB4', '#C19AE7', '#4EF727', '#00A140'], s=40)
+    if show2D:
+        plt.show()
+    else:
+        plt.savefig("Img{}".format(i))
+        plt.close()
 
 
 points3 = None
@@ -114,6 +136,9 @@ graph = None
 
 
 def visualize_3d(points, i, show3D, save3D):
+    """
+    Visualizes and/or saves an image of the 3D joint coordinates.
+    """
     if not show3D and not save3D:
         return
     global points3
@@ -139,36 +164,19 @@ def visualize_3d(points, i, show3D, save3D):
         plt.close()
 
 
-def visualize_2d(bw_frame, points, i, show2D, save2D):
-    if not show2D and not save2D:
-        return
-    plt.imshow(bw_frame)
-
-    plt.scatter(x=points[:, 0], y=points[:, 1], c=['#397916', '#8C164F', '#5F8EEB', '#CA505D', '#9B4196', '#612006',
-                                                   '#9AFAC4', '#CF91E1', '#A68875', '#5F3881', '#837FE0', '#D9AFB4', '#C19AE7', '#4EF727', '#00A140'], s=40)
-    if show2D:
-        plt.show()
-    else:
-        plt.savefig("Img{}".format(i))
-        plt.close()
-
-
 def read_video(v_name):
     '''
     returns an iterable of the images in a video
     input: v_name: the name of the video to process
     output: a cv2.VideoCapture object (essentially an iterable over the images in the video)
     '''
-    vid = cv2.VideoCapture(v_name)
-    return vid
+    return cv2.VideoCapture(v_name)
 
 
 def main():
     print("Getting video.")
     plt.gray()
-    print(os.getcwd())
     vid = read_video('../hd_00_03.mp4')
-    print(vid)
     # Make sure joint indices are integers
     first_joints = np.asarray([
         [1077, 930],
@@ -187,7 +195,10 @@ def main():
         [1153, 322],
         [1157, 390],
     ])
-    res = trace_joints(vid, first_joints, save=False, show=False)
+
+    # change these to save images/only show 2d or 3d/only save images
+    res = trace_joints(vid, first_joints, show2D=True,
+                       save2D=False, show3D=True, save3D=False)
     print(res)
 
 
