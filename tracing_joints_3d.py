@@ -177,16 +177,16 @@ def main():
     print("Getting video.")
     plt.gray()
     vid = read_video('../hd_00_03.mp4')
+    
     # Make sure joint indices are integers
-<<<<<<< HEAD
     start_coords = np.genfromtxt('start_coords.csv', delimiter=',')
 
     start_coords = np.floor(start_coords)
 
     first_joints = start_coords
     res = trace_joints(vid, first_joints)
-    print(res)
 
+    print(res)
 
 if __name__ == '__main__':
     main()
